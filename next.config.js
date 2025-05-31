@@ -1,32 +1,37 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
+  output: "standalone",
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   images: {
     unoptimized: true,
-    domains: ["placeholder.svg"],
-    dangerouslyAllowSVG: true,
-    contentDispositionType: "attachment",
-    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
+        crypto: false,
         fs: false,
         net: false,
         tls: false,
-        crypto: false,
       }
     }
+
+    config.module.rules.push({
+      test: /\.node$/,
+      use: "raw-loader",
+    })
+
     return config
   },
-  eslint: {
-    ignoreDuringBuilds: true,
+  transpilePackages: ["lucide-react", "@radix-ui/react-icons"],
+  experimental: {
+    serverComponentsExternalPackages: ["firebase-admin"],
   },
-  typescript: {
-    ignoreBuildErrors: false,
-  },
-  transpilePackages: ["lucide-react"],
 }
 
 module.exports = nextConfig
