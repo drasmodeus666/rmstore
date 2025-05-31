@@ -22,6 +22,12 @@ interface InvoiceEntry {
   customer: string
   timestamp: number
   invoiceNumber?: string
+  total?: number
+  subtotal?: number
+  items?: InvoiceItem[]
+  customerEmail?: string
+  customerPhone?: string
+  notes?: string
 }
 
 interface InvoiceItem {
@@ -605,7 +611,9 @@ export default function InvoiceGenerator() {
                               ৳
                               {typeof invoice.total === "number"
                                 ? invoice.total.toFixed(2)
-                                : ((invoice.price || 0) * (invoice.quantity || 1)).toFixed(2)}
+                                : typeof invoice.subtotal === "number"
+                                  ? invoice.subtotal.toFixed(2)
+                                  : ((invoice.price || 0) * (invoice.quantity || 1)).toFixed(2)}
                             </p>
                             <Button
                               variant="ghost"
@@ -615,18 +623,21 @@ export default function InvoiceGenerator() {
                                 // Regenerate the PDF for this invoice
                                 const invoiceData = {
                                   customer: invoice.customer,
+                                  customerEmail: invoice.customerEmail || "",
+                                  customerPhone: invoice.customerPhone || "",
                                   invoiceNumber:
                                     invoice.invoiceNumber ||
                                     `INV-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
-                                  items: [
+                                  items: invoice.items || [
                                     {
                                       product: invoice.product,
                                       price: invoice.price,
                                       quantity: invoice.quantity || 1,
                                     },
                                   ],
-                                  subtotal: invoice.price * (invoice.quantity || 1),
-                                  total: invoice.price * (invoice.quantity || 1), // No tax
+                                  subtotal: invoice.subtotal || invoice.price * (invoice.quantity || 1),
+                                  total: invoice.total || invoice.subtotal || invoice.price * (invoice.quantity || 1),
+                                  notes: invoice.notes || "",
                                   timestamp: invoice.timestamp,
                                 }
                                 generateInvoicePDF(invoiceData)
@@ -637,7 +648,12 @@ export default function InvoiceGenerator() {
                           </div>
                         </div>
                         <div className="mt-2">
-                          <p className="text-sm">{invoice.product && `${invoice.product} x${invoice.quantity || 1}`}</p>
+                          <p className="text-sm">
+                            {invoice.product && `${invoice.product} x${invoice.quantity || 1}`}
+                            {invoice.items &&
+                              invoice.items.length > 0 &&
+                              `${invoice.items.length} item${invoice.items.length > 1 ? "s" : ""}`}
+                          </p>
                         </div>
                       </motion.div>
                     ))}
