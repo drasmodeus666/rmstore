@@ -91,8 +91,8 @@ export default function SuccessPage() {
                   </div>
                   <div className="p-4 bg-black/30 border border-white/10 rounded-lg">
                     <p className="text-white">
-                      Your Ruby Keys will be delivered within 400-500 minutes. Logging in before delivery is complete may
-                      cause issues with your purchase. For faster Delivery, mention Pronoy M. Arpon in the Messenger Group of BANGLAdesh
+                      Your Ruby Keys will be delivered within 5-10 minutes. Logging in before delivery is complete may
+                      cause issues with your purchase.
                     </p>
                   </div>
                   <div className="text-center">

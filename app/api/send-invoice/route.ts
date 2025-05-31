@@ -1,64 +1,37 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { sendPremiumInvoiceEmail, sendInvoiceNotificationEmail } from "@/lib/email-service"
+import { NextResponse } from "next/server"
+import { sendPremiumInvoiceEmail } from "@/lib/email-service"
 
-// Define the email result type
-interface EmailResult {
-  success: boolean
-  error?: string
-  invoiceNumber?: string
-}
-
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
-    const orderData = await request.json()
+    const data = await request.json()
 
-    // Validate required environment variable
-    if (!process.env.RESEND_API_KEY) {
-      console.error("RESEND_API_KEY environment variable is not set")
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Email service not configured",
-          details: "RESEND_API_KEY is missing",
-        },
-        { status: 500 },
-      )
+    // Validate required fields
+    if (!data.customerName || !data.customerEmail || !data.product || !data.price || !data.uid) {
+      return NextResponse.json({ success: false, message: "Missing required fields" }, { status: 400 })
     }
 
-    // Try to send premium invoice with Resend
-    let emailResult: EmailResult = await sendPremiumInvoiceEmail(orderData)
-
-    // If email fails, send notification email
-    if (!emailResult.success) {
-      console.log("Primary email failed, sending notification email...")
-      emailResult = await sendInvoiceNotificationEmail(orderData)
+    // Format the order data
+    const orderData = {
+      customerName: data.customerName,
+      customerEmail: data.customerEmail,
+      customerPhone: data.customerPhone || "",
+      uid: data.uid,
+      product: data.product,
+      price: data.price,
+      transactionId: data.transactionId || `TX${Date.now()}`,
+      orderDate: new Date().toISOString(),
     }
 
-    if (emailResult.success) {
-      return NextResponse.json({
-        success: true,
-        message: "Invoice sent successfully via Resend",
-        invoiceNumber: emailResult.invoiceNumber,
-      })
-    } else {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Failed to send invoice email",
-          details: emailResult.error || "Unknown error occurred",
-        },
-        { status: 500 },
-      )
-    }
+    // Send email
+    const result = await sendPremiumInvoiceEmail(orderData)
+
+    return NextResponse.json({
+      success: true,
+      message: "Invoice sent successfully",
+      invoiceNumber: result.invoiceNumber,
+    })
   } catch (error) {
-    console.error("Error in send-invoice API:", error)
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Internal server error",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    )
+    console.error("Error sending invoice:", error)
+    return NextResponse.json({ success: false, message: "Failed to send invoice" }, { status: 500 })
   }
 }

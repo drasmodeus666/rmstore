@@ -105,6 +105,7 @@ export const generatePremiumInvoicePDF = (data: InvoiceData) => {
   yPos += 15
 
   // Table rows
+  let totalAmount = 0
   data.items.forEach((item, index) => {
     const rowColor = index % 2 === 0 ? [30, 41, 59] : [51, 65, 85]
     doc.setFillColor(rowColor[0], rowColor[1], rowColor[2])
@@ -117,11 +118,11 @@ export const generatePremiumInvoicePDF = (data: InvoiceData) => {
     doc.text(item.quantity.toString(), pageWidth - 80, yPos + 10)
     doc.text(`৳${item.price.toLocaleString()}`, pageWidth - 25, yPos + 10, { align: "right" })
 
+    totalAmount += item.price * item.quantity
     yPos += 15
   })
 
   // Total section
-  const total = data.items.reduce((sum, item) => sum + item.price * item.quantity, 0)
   yPos += 10
 
   doc.setFillColor(30, 41, 59)
@@ -138,7 +139,7 @@ export const generatePremiumInvoicePDF = (data: InvoiceData) => {
   doc.setTextColor(96, 165, 250) // blue-400
   doc.setFontSize(16)
   doc.setFont("helvetica", "bold")
-  doc.text(`৳${total.toLocaleString()}`, pageWidth - 95, yPos + 20)
+  doc.text(`৳${totalAmount.toLocaleString()}`, pageWidth - 95, yPos + 20)
 
   // Payment status
   yPos += 40
@@ -161,6 +162,7 @@ export const generatePremiumInvoicePDF = (data: InvoiceData) => {
     "• Recharge will be processed within 24 hours",
     "• Contact support for any issues or queries",
     "• This invoice serves as proof of purchase",
+    "• No refunds after service is delivered",
   ]
 
   terms.forEach((term, index) => {
