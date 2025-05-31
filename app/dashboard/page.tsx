@@ -449,9 +449,10 @@ const DashboardPage = () => {
                           order.status === "pending"
                             ? "secondary"
                             : order.status === "approved"
-                              ? "success"
+                              ? "default"
                               : "destructive"
                         }
+                        className={order.status === "approved" ? "bg-green-100 text-green-800 hover:bg-green-200" : ""}
                       >
                         {order.status}
                       </Badge>
