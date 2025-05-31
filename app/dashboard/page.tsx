@@ -6,7 +6,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { database } from "../firebase"
+import { database } from "@/lib/firebase"
 import { ref, onValue, off } from "firebase/database"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
@@ -303,24 +303,40 @@ const DashboardPage = () => {
     }
   }
 
-  const set = (
-    orderRef: any,
-    arg1: {
-      name: string
-      email: string
-      phone: string
-      address: string
-      items: string
-      total: number
-      status: string
-      notes: string
-    },
-  ) => {
-    throw new Error("Method not implemented.")
+  const set = async (orderRef: any, updates: Partial<Order>) => {
+    try {
+      await update(orderRef, updates)
+    } catch (error) {
+      console.error("Error updating data:", error)
+      throw error
+    }
   }
 
-  const remove = (orderRef: any) => {
-    throw new Error("Method not implemented.")
+  const remove = async (orderRef: any) => {
+    try {
+      await deleteData(orderRef)
+    } catch (error) {
+      console.error("Error deleting data:", error)
+      throw error
+    }
+  }
+
+  const update = async (orderRef: any, updates: Partial<Order>) => {
+    try {
+      await set(orderRef, updates)
+    } catch (error) {
+      console.error("Error updating data:", error)
+      throw error
+    }
+  }
+
+  const deleteData = async (orderRef: any) => {
+    try {
+      await remove(orderRef)
+    } catch (error) {
+      console.error("Error deleting data:", error)
+      throw error
+    }
   }
 
   return (
