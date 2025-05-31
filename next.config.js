@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
   images: {
     unoptimized: true,
     domains: ["placeholder.svg"],
@@ -26,9 +25,6 @@ const nextConfig = {
   },
   typescript: {
     ignoreBuildErrors: false,
-  },
-  experimental: {
-    esmExternals: "loose",
   },
   transpilePackages: ["lucide-react"],
 }
