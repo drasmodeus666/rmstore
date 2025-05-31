@@ -222,52 +222,52 @@ export default function AdminPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Card>
+        <Card className="bg-gray-900 border border-gray-800">
           <CardHeader className="pb-2">
-            <CardTitle>Total Orders</CardTitle>
-            <CardDescription>All orders in the system</CardDescription>
+            <CardTitle className="text-white">Total Orders</CardTitle>
+            <CardDescription className="text-gray-400">All orders in the system</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{stats.totalOrders}</p>
+            <p className="text-3xl font-bold text-white">{stats.totalOrders}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-gray-900 border border-gray-800">
           <CardHeader className="pb-2">
-            <CardTitle>Pending Orders</CardTitle>
-            <CardDescription>Orders awaiting approval</CardDescription>
+            <CardTitle className="text-white">Pending Orders</CardTitle>
+            <CardDescription className="text-gray-400">Orders awaiting approval</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{stats.pendingOrders}</p>
+            <p className="text-3xl font-bold text-white">{stats.pendingOrders}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-gray-900 border border-gray-800">
           <CardHeader className="pb-2">
-            <CardTitle>Total Revenue</CardTitle>
-            <CardDescription>Sum of all order values</CardDescription>
+            <CardTitle className="text-white">Total Revenue</CardTitle>
+            <CardDescription className="text-gray-400">Sum of all order values</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">${stats.totalRevenue.toFixed(2)}</p>
+            <p className="text-3xl font-bold text-white">৳{stats.totalRevenue.toFixed(2)}</p>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
+      <Card className="bg-gray-900 border border-gray-800">
         <CardHeader>
-          <CardTitle>Recent Orders</CardTitle>
-          <CardDescription>Manage your recent orders</CardDescription>
+          <CardTitle className="text-white">Recent Orders</CardTitle>
+          <CardDescription className="text-gray-400">Manage your recent orders</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Order ID</TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead>Profit</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Actions</TableHead>
+                <TableRow className="border-gray-800">
+                  <TableHead className="text-gray-400">Order ID</TableHead>
+                  <TableHead className="text-gray-400">Product</TableHead>
+                  <TableHead className="text-gray-400">Price</TableHead>
+                  <TableHead className="text-gray-400">Profit</TableHead>
+                  <TableHead className="text-gray-400">Status</TableHead>
+                  <TableHead className="text-gray-400">Date</TableHead>
+                  <TableHead className="text-gray-400">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -275,8 +275,8 @@ export default function AdminPage() {
                   <TableRow key={order.id}>
                     <TableCell className="font-medium">{order.id.substring(0, 8)}</TableCell>
                     <TableCell>{order.product}</TableCell>
-                    <TableCell>${order.price}</TableCell>
-                    <TableCell>${order.profit || 0}</TableCell>
+                    <TableCell>৳{order.price}</TableCell>
+                    <TableCell>৳{order.profit || 0}</TableCell>
                     <TableCell>
                       <Badge
                         variant={
@@ -411,7 +411,7 @@ export default function AdminPage() {
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="profit" className="text-right">
-                Profit ($)
+                Profit (৳)
               </Label>
               <Input
                 id="profit"
