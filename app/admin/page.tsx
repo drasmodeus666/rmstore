@@ -36,6 +36,8 @@ export default function AdminPage() {
 
   // Check authentication
   useEffect(() => {
+    if (typeof window === "undefined") return
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (!user) {
         router.push("/admin/login")
@@ -49,7 +51,7 @@ export default function AdminPage() {
 
   // Load orders
   useEffect(() => {
-    if (!authChecked) return
+    if (!authChecked || typeof window === "undefined") return
 
     const ordersRef = ref(database, "orders")
 
@@ -192,6 +194,11 @@ export default function AdminPage() {
     }
   }
 
+  // Check if order is a UID purchase
+  const isUidPurchase = (order: Order) => {
+    return order.product && (order.product.toLowerCase().includes("uid") || order.uid)
+  }
+
   if (!authChecked || loading) {
     return (
       <div className="container mx-auto p-4">
@@ -272,11 +279,11 @@ export default function AdminPage() {
               </TableHeader>
               <TableBody>
                 {orders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell className="font-medium">{order.id.substring(0, 8)}</TableCell>
-                    <TableCell>{order.product}</TableCell>
-                    <TableCell>৳{order.price}</TableCell>
-                    <TableCell>৳{order.profit || 0}</TableCell>
+                  <TableRow key={order.id} className="border-gray-800">
+                    <TableCell className="font-medium text-white">{order.id.substring(0, 8)}</TableCell>
+                    <TableCell className="text-white">{order.product}</TableCell>
+                    <TableCell className="text-white">৳{order.price}</TableCell>
+                    <TableCell className="text-white">৳{order.profit || 0}</TableCell>
                     <TableCell>
                       <Badge
                         variant={
@@ -290,7 +297,7 @@ export default function AdminPage() {
                         {order.status}
                       </Badge>
                     </TableCell>
-                    <TableCell>{new Date(order.timestamp).toLocaleDateString()}</TableCell>
+                    <TableCell className="text-white">{new Date(order.timestamp).toLocaleDateString()}</TableCell>
                     <TableCell>
                       <div className="flex gap-2">
                         <Button
@@ -347,56 +354,83 @@ export default function AdminPage() {
       <Dialog open={showCredentials} onOpenChange={setShowCredentials}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Account Credentials</DialogTitle>
-            <DialogDescription>Netease account credentials for this order</DialogDescription>
+            <DialogTitle>{isUidPurchase(selectedOrder!) ? "UID Information" : "Account Credentials"}</DialogTitle>
+            <DialogDescription>
+              {isUidPurchase(selectedOrder!)
+                ? "UID details for this order"
+                : "Netease account credentials for this order"}
+            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="email" className="text-right">
-                Email
-              </Label>
-              <div className="col-span-3 flex gap-2">
-                <Input
-                  id="email"
-                  value={selectedOrder?.neteaseEmail || selectedOrder?.email || ""}
-                  readOnly
-                  className="flex-1"
-                />
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    const email = selectedOrder?.neteaseEmail || selectedOrder?.email || ""
-                    navigator.clipboard.writeText(email)
-                    toast({ title: "Copied to clipboard" })
-                  }}
-                >
-                  Copy
-                </Button>
+            {isUidPurchase(selectedOrder!) ? (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="uid" className="text-right">
+                  UID
+                </Label>
+                <div className="col-span-3 flex gap-2">
+                  <Input id="uid" value={selectedOrder?.uid || ""} readOnly className="flex-1" />
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const uid = selectedOrder?.uid || ""
+                      navigator.clipboard.writeText(uid)
+                      toast({ title: "UID copied to clipboard" })
+                    }}
+                  >
+                    Copy
+                  </Button>
+                </div>
               </div>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="password" className="text-right">
-                Password
-              </Label>
-              <div className="col-span-3 flex gap-2">
-                <Input
-                  id="password"
-                  value={selectedOrder?.neteasePassword || selectedOrder?.password || ""}
-                  readOnly
-                  className="flex-1"
-                />
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    const password = selectedOrder?.neteasePassword || selectedOrder?.password || ""
-                    navigator.clipboard.writeText(password)
-                    toast({ title: "Copied to clipboard" })
-                  }}
-                >
-                  Copy
-                </Button>
-              </div>
-            </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="email" className="text-right">
+                    Email
+                  </Label>
+                  <div className="col-span-3 flex gap-2">
+                    <Input
+                      id="email"
+                      value={selectedOrder?.neteaseEmail || selectedOrder?.email || ""}
+                      readOnly
+                      className="flex-1"
+                    />
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        const email = selectedOrder?.neteaseEmail || selectedOrder?.email || ""
+                        navigator.clipboard.writeText(email)
+                        toast({ title: "Email copied to clipboard" })
+                      }}
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="password" className="text-right">
+                    Password
+                  </Label>
+                  <div className="col-span-3 flex gap-2">
+                    <Input
+                      id="password"
+                      value={selectedOrder?.neteasePassword || selectedOrder?.password || ""}
+                      readOnly
+                      className="flex-1"
+                    />
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        const password = selectedOrder?.neteasePassword || selectedOrder?.password || ""
+                        navigator.clipboard.writeText(password)
+                        toast({ title: "Password copied to clipboard" })
+                      }}
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </DialogContent>
       </Dialog>
