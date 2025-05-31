@@ -1,6 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sendPremiumInvoiceEmail, sendInvoiceNotificationEmail } from "@/lib/email-service"
 
+// Define the email result type
+interface EmailResult {
+  success: boolean
+  error?: string
+  invoiceNumber?: string
+}
+
 export async function POST(request: NextRequest) {
   try {
     const orderData = await request.json()
@@ -19,7 +26,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Try to send premium invoice with Resend
-    let emailResult = await sendPremiumInvoiceEmail(orderData)
+    let emailResult: EmailResult = await sendPremiumInvoiceEmail(orderData)
 
     // If email fails, send notification email
     if (!emailResult.success) {
@@ -38,7 +45,7 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           error: "Failed to send invoice email",
-          details: emailResult.error,
+          details: emailResult.error || "Unknown error occurred",
         },
         { status: 500 },
       )
