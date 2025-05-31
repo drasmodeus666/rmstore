@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -11,8 +11,6 @@ import {
   Eye,
   Edit,
   Trash2,
-  Check,
-  X,
   Package,
   Clock,
   CheckCircle,
@@ -20,17 +18,18 @@ import {
   TrendingUp,
   TrendingDown,
   Calendar,
+  BarChart3,
 } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "@/hooks/use-toast"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import StatsCard from "@/components/StatsCard"
+import { auth, database } from "@/lib/firebase"
+import { ref, onValue, update, remove, off } from "firebase/database"
+import { signOut, onAuthStateChanged } from "firebase/auth"
 import type { Order, Stats } from "@/types"
 
-// Dynamic imports to avoid SSR issues
-const AdminDashboard = () => {
+export default function AdminPage() {
   const router = useRouter()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
@@ -50,111 +49,96 @@ const AdminDashboard = () => {
     monthlySpending: 0,
   })
 
-  // Dynamic Firebase imports
+  // Check authentication
   useEffect(() => {
-    const initializeFirebase = async () => {
-      if (typeof window === "undefined") return
+    if (typeof window === "undefined") return
 
-      try {
-        const { auth, database } = await import("@/lib/firebase")
-        const { onAuthStateChanged, signOut } = await import("firebase/auth")
-        const { ref, onValue, update, remove, off } = await import("firebase/database")
-
-        // Check authentication
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-          if (!user) {
-            router.push("/admin/login")
-          } else {
-            setAuthChecked(true)
-          }
-        })
-
-        // Load orders when authenticated
-        if (authChecked) {
-          const ordersRef = ref(database, "orders")
-
-          const handleOrdersValue = (snapshot: any) => {
-            const data = snapshot.val()
-            if (data) {
-              const ordersArray = Object.entries(data).map(([key, value]: [string, any]) => ({
-                id: key,
-                ...value,
-              })) as Order[]
-
-              setOrders(ordersArray)
-
-              // Calculate stats
-              const totalOrders = ordersArray.length
-              const pendingOrders = ordersArray.filter((order) => order.status === "pending").length
-              const completedOrders = ordersArray.filter((order) => order.status === "completed").length
-              const totalRevenue = ordersArray.reduce((sum, order) => sum + (order.price || 0), 0)
-              const totalProfit = ordersArray.reduce((sum, order) => sum + (order.profit || 0), 0)
-              const totalCost = ordersArray.reduce((sum, order) => sum + (order.cost || 0), 0)
-
-              // Calculate today's spending
-              const today = new Date().toDateString()
-              const spentToday = ordersArray
-                .filter((order) => new Date(order.timestamp).toDateString() === today)
-                .reduce((sum, order) => sum + (order.cost || 0), 0)
-
-              // Calculate monthly spending
-              const currentMonth = new Date().getMonth()
-              const currentYear = new Date().getFullYear()
-              const monthlySpending = ordersArray
-                .filter((order) => {
-                  const orderDate = new Date(order.timestamp)
-                  return orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear
-                })
-                .reduce((sum, order) => sum + (order.cost || 0), 0)
-
-              setStats({
-                totalOrders,
-                pendingOrders,
-                completedOrders,
-                totalRevenue,
-                totalProfit,
-                totalCost,
-                spentToday,
-                monthlySpending,
-              })
-            } else {
-              setOrders([])
-              setStats({
-                totalOrders: 0,
-                pendingOrders: 0,
-                completedOrders: 0,
-                totalRevenue: 0,
-                totalProfit: 0,
-                totalCost: 0,
-                spentToday: 0,
-                monthlySpending: 0,
-              })
-            }
-            setLoading(false)
-          }
-
-          onValue(ordersRef, handleOrdersValue)
-
-          return () => {
-            off(ordersRef, "value", handleOrdersValue)
-            unsubscribe()
-          }
-        }
-
-        return () => unsubscribe()
-      } catch (error) {
-        console.error("Firebase initialization error:", error)
-        setLoading(false)
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        router.push("/admin/login")
+      } else {
+        setAuthChecked(true)
       }
+    })
+
+    return () => unsubscribe()
+  }, [router])
+
+  // Load orders
+  useEffect(() => {
+    if (!authChecked || typeof window === "undefined") return
+
+    const ordersRef = ref(database, "orders")
+
+    const handleOrdersValue = (snapshot: any) => {
+      const data = snapshot.val()
+      if (data) {
+        const ordersArray = Object.entries(data).map(([key, value]: [string, any]) => ({
+          id: key,
+          ...value,
+        })) as Order[]
+
+        setOrders(ordersArray)
+
+        // Calculate stats
+        const totalOrders = ordersArray.length
+        const pendingOrders = ordersArray.filter((order) => order.status === "pending").length
+        const completedOrders = ordersArray.filter((order) => order.status === "completed").length
+        const totalRevenue = ordersArray.reduce((sum, order) => sum + (order.price || 0), 0)
+        const totalProfit = ordersArray.reduce((sum, order) => sum + (order.profit || 0), 0)
+        const totalCost = ordersArray.reduce((sum, order) => sum + (order.cost || 0), 0)
+
+        // Calculate today's spending
+        const today = new Date().toDateString()
+        const spentToday = ordersArray
+          .filter((order) => new Date(order.timestamp).toDateString() === today)
+          .reduce((sum, order) => sum + (order.cost || 0), 0)
+
+        // Calculate monthly spending
+        const currentMonth = new Date().getMonth()
+        const currentYear = new Date().getFullYear()
+        const monthlySpending = ordersArray
+          .filter((order) => {
+            const orderDate = new Date(order.timestamp)
+            return orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear
+          })
+          .reduce((sum, order) => sum + (order.cost || 0), 0)
+
+        setStats({
+          totalOrders,
+          pendingOrders,
+          completedOrders,
+          totalRevenue,
+          totalProfit,
+          totalCost,
+          spentToday,
+          monthlySpending,
+        })
+      } else {
+        setOrders([])
+        setStats({
+          totalOrders: 0,
+          pendingOrders: 0,
+          completedOrders: 0,
+          totalRevenue: 0,
+          totalProfit: 0,
+          totalCost: 0,
+          spentToday: 0,
+          monthlySpending: 0,
+        })
+      }
+      setLoading(false)
     }
 
-    initializeFirebase()
-  }, [router, authChecked])
+    onValue(ordersRef, handleOrdersValue)
+
+    return () => {
+      off(ordersRef, "value", handleOrdersValue)
+    }
+  }, [authChecked])
 
   const handleLogout = async () => {
     try {
-      const { auth } = await import("@/lib/firebase")
-      const { signOut } = await import("firebase/auth")
       await signOut(auth)
       router.push("/admin/login")
     } catch (error) {
@@ -169,8 +153,6 @@ const AdminDashboard = () => {
 
   const handleApproveOrder = async (orderId: string) => {
     try {
-      const { database } = await import("@/lib/firebase")
-      const { ref, update } = await import("firebase/database")
       const orderRef = ref(database, `orders/${orderId}`)
       await update(orderRef, { status: "completed" })
       toast({
@@ -189,8 +171,6 @@ const AdminDashboard = () => {
 
   const handleRejectOrder = async (orderId: string) => {
     try {
-      const { database } = await import("@/lib/firebase")
-      const { ref, update } = await import("firebase/database")
       const orderRef = ref(database, `orders/${orderId}`)
       await update(orderRef, { status: "rejected" })
       toast({
@@ -209,8 +189,6 @@ const AdminDashboard = () => {
 
   const handleDeleteOrder = async (orderId: string) => {
     try {
-      const { database } = await import("@/lib/firebase")
-      const { ref, remove } = await import("firebase/database")
       const orderRef = ref(database, `orders/${orderId}`)
       await remove(orderRef)
       toast({
@@ -237,8 +215,6 @@ const AdminDashboard = () => {
     if (!selectedOrder) return
 
     try {
-      const { database } = await import("@/lib/firebase")
-      const { ref, update } = await import("firebase/database")
       const orderRef = ref(database, `orders/${selectedOrder.id}`)
       await update(orderRef, { profit: profitValue })
       setEditingProfit(false)
@@ -257,21 +233,26 @@ const AdminDashboard = () => {
   }
 
   // Check if order is a UID purchase
-  const isUidPurchase = (order: Order | null) => {
-    if (!order) return false
-    return order.product && (order.product.toLowerCase().includes("uid") || order.uid)
+  const isUidPurchase = (order: Order | null | undefined): boolean => {
+    if (!order || !order.product) return false
+    try {
+      return order.product.toLowerCase().includes("uid") || Boolean(order.uid)
+    } catch (error) {
+      console.error("Error checking UID purchase:", error)
+      return false
+    }
   }
 
   if (!authChecked || loading) {
     return (
-      <div className="min-h-screen bg-gray-900 p-4">
-        <div className="flex flex-col gap-4">
+      <div className="min-h-screen bg-gray-900 p-6">
+        <div className="flex flex-col gap-6">
           <Skeleton className="h-8 w-64" />
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Skeleton className="h-32" />
-            <Skeleton className="h-32" />
-            <Skeleton className="h-32" />
-            <Skeleton className="h-32" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Skeleton className="h-24" />
+            <Skeleton className="h-24" />
+            <Skeleton className="h-24" />
+            <Skeleton className="h-24" />
           </div>
           <Skeleton className="h-96" />
         </div>
@@ -280,200 +261,270 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900">
+    <div className="min-h-screen bg-gray-900 p-6">
       {/* Header */}
-      <div className="bg-gray-800 border-b border-gray-700 px-6 py-4">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-white">Racing Master Dashboard</h1>
-            <p className="text-gray-400">Welcome back, xrupture.tw@gmail.com</p>
-          </div>
-          <Button variant="outline" onClick={handleLogout} className="text-white border-gray-600">
+      <div className="flex justify-between items-start mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-white mb-2">Admin Dashboard</h1>
+          <p className="text-gray-400">Manage your Racing Master orders</p>
+        </div>
+        <div className="flex gap-3">
+          <Button onClick={() => router.push("/admin/orders")} className="bg-gray-700 hover:bg-gray-600 text-white">
+            Manage Orders
+          </Button>
+          <Button
+            onClick={() => router.push("/admin/profit-analysis")}
+            className="bg-gray-700 hover:bg-gray-600 text-white"
+          >
+            Profit Analysis
+          </Button>
+          <Button variant="destructive" onClick={handleLogout}>
             Logout
           </Button>
         </div>
       </div>
 
-      <div className="p-6">
-        {/* Navigation Tabs */}
-        <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 bg-gray-800 mb-6">
-            <TabsTrigger value="overview" className="text-white data-[state=active]:bg-gray-700">
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="orders" className="text-white data-[state=active]:bg-gray-700">
-              Orders
-            </TabsTrigger>
-            <TabsTrigger value="spending" className="text-white data-[state=active]:bg-gray-700">
-              Spending
-            </TabsTrigger>
-            <TabsTrigger value="analytics" className="text-white data-[state=active]:bg-gray-700">
-              Analytics
-            </TabsTrigger>
-            <TabsTrigger value="reports" className="text-white data-[state=active]:bg-gray-700">
-              Reports
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" className="space-y-6">
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-7 gap-4">
-              <StatsCard title="Total Orders" value={stats.totalOrders} icon={<Package />} color="blue" />
-              <StatsCard title="Pending" value={stats.pendingOrders} icon={<Clock />} color="yellow" />
-              <StatsCard title="Approved" value={stats.completedOrders} icon={<CheckCircle />} color="green" />
-              <StatsCard title="Revenue" value={stats.totalRevenue} icon={<DollarSign />} color="blue" isMoney={true} />
-              <StatsCard
-                title="Total Cost"
-                value={stats.totalCost}
-                icon={<TrendingDown />}
-                color="red"
-                isMoney={true}
-              />
-              <StatsCard title="Profit" value={stats.totalProfit} icon={<TrendingUp />} color="blue" isMoney={true} />
-              <StatsCard
-                title="Spent Today"
-                value={stats.spentToday}
-                icon={<Calendar />}
-                color="orange"
-                isMoney={true}
-              />
+      {/* Stats Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {/* Row 1 */}
+        <Card className="bg-gray-800 border-gray-700 p-4">
+          <CardContent className="p-0">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-500/20 rounded-lg">
+                <Package className="h-5 w-5 text-blue-400" />
+              </div>
+              <div>
+                <p className="text-gray-400 text-sm">Total Orders</p>
+                <p className="text-2xl font-bold text-white">{stats.totalOrders}</p>
+              </div>
             </div>
+          </CardContent>
+        </Card>
 
-            {/* Monthly Spending Card */}
-            <Card className="bg-gray-800 border-gray-700">
-              <CardHeader>
-                <CardTitle className="text-white">Monthly Spending</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-white">৳{stats.monthlySpending.toFixed(1)}</div>
-                <p className="text-gray-400">Current month total costs</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
+        <Card className="bg-gray-800 border-gray-700 p-4">
+          <CardContent className="p-0">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-yellow-500/20 rounded-lg">
+                <Clock className="h-5 w-5 text-yellow-400" />
+              </div>
+              <div>
+                <p className="text-gray-400 text-sm">Pending</p>
+                <p className="text-2xl font-bold text-white">{stats.pendingOrders}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-          <TabsContent value="orders">
-            <Card className="bg-gray-800 border-gray-700">
-              <CardHeader>
-                <CardTitle className="text-white">Recent Orders</CardTitle>
-                <CardDescription className="text-gray-400">Manage your recent orders</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-gray-700">
-                        <TableHead className="text-gray-400">Order ID</TableHead>
-                        <TableHead className="text-gray-400">Product</TableHead>
-                        <TableHead className="text-gray-400">Price</TableHead>
-                        <TableHead className="text-gray-400">Profit</TableHead>
-                        <TableHead className="text-gray-400">Status</TableHead>
-                        <TableHead className="text-gray-400">Date</TableHead>
-                        <TableHead className="text-gray-400">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {orders.map((order) => (
-                        <TableRow key={order.id} className="border-gray-700">
-                          <TableCell className="font-medium text-white">{order.id.substring(0, 8)}</TableCell>
-                          <TableCell className="text-white">{order.product}</TableCell>
-                          <TableCell className="text-white">৳{order.price}</TableCell>
-                          <TableCell className="text-white">৳{order.profit || 0}</TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                order.status === "pending"
-                                  ? "outline"
-                                  : order.status === "completed"
-                                    ? "default"
-                                    : "destructive"
-                              }
-                            >
-                              {order.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-white">{new Date(order.timestamp).toLocaleDateString()}</TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button
-                                size="icon"
-                                variant="outline"
-                                className="h-8 w-8 bg-red-50"
-                                onClick={() => handleViewCredentials(order)}
-                              >
-                                <Eye className="h-4 w-4 text-red-500" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="outline"
-                                className="h-8 w-8 bg-green-50"
-                                onClick={() => handleApproveOrder(order.id)}
-                              >
-                                <Check className="h-4 w-4 text-green-500" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="outline"
-                                className="h-8 w-8 bg-red-50"
-                                onClick={() => handleRejectOrder(order.id)}
-                              >
-                                <X className="h-4 w-4 text-red-500" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="outline"
-                                className="h-8 w-8 bg-blue-50"
-                                onClick={() => handleEditProfit(order)}
-                              >
-                                <Edit className="h-4 w-4 text-blue-500" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="outline"
-                                className="h-8 w-8 bg-red-50"
-                                onClick={() => handleDeleteOrder(order.id)}
-                              >
-                                <Trash2 className="h-4 w-4 text-red-500" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+        <Card className="bg-gray-800 border-gray-700 p-4">
+          <CardContent className="p-0">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-500/20 rounded-lg">
+                <CheckCircle className="h-5 w-5 text-green-400" />
+              </div>
+              <div>
+                <p className="text-gray-400 text-sm">Approved</p>
+                <p className="text-2xl font-bold text-white">{stats.completedOrders}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-          <TabsContent value="spending">
-            <div className="text-white">Spending analytics coming soon...</div>
-          </TabsContent>
+        <Card className="bg-gray-800 border-gray-700 p-4">
+          <CardContent className="p-0">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-500/20 rounded-lg">
+                <DollarSign className="h-5 w-5 text-purple-400" />
+              </div>
+              <div>
+                <p className="text-gray-400 text-sm">Revenue</p>
+                <p className="text-2xl font-bold text-white">৳{stats.totalRevenue.toLocaleString()}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-          <TabsContent value="analytics">
-            <div className="text-white">Analytics dashboard coming soon...</div>
-          </TabsContent>
+        {/* Row 2 */}
+        <Card className="bg-gray-800 border-gray-700 p-4">
+          <CardContent className="p-0">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-red-500/20 rounded-lg">
+                <TrendingDown className="h-5 w-5 text-red-400" />
+              </div>
+              <div>
+                <p className="text-gray-400 text-sm">Total Cost</p>
+                <p className="text-2xl font-bold text-white">৳{stats.totalCost.toLocaleString()}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-          <TabsContent value="reports">
-            <div className="text-white">Reports section coming soon...</div>
-          </TabsContent>
-        </Tabs>
+        <Card className="bg-gray-800 border-gray-700 p-4">
+          <CardContent className="p-0">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-500/20 rounded-lg">
+                <TrendingUp className="h-5 w-5 text-blue-400" />
+              </div>
+              <div>
+                <p className="text-gray-400 text-sm">Profit</p>
+                <p className="text-2xl font-bold text-white">৳{stats.totalProfit.toLocaleString()}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gray-800 border-gray-700 p-4">
+          <CardContent className="p-0">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-orange-500/20 rounded-lg">
+                <Calendar className="h-5 w-5 text-orange-400" />
+              </div>
+              <div>
+                <p className="text-gray-400 text-sm">Spent Today</p>
+                <p className="text-2xl font-bold text-white">৳{stats.spentToday.toLocaleString()}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gray-800 border-gray-700 p-4">
+          <CardContent className="p-0">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-indigo-500/20 rounded-lg">
+                <BarChart3 className="h-5 w-5 text-indigo-400" />
+              </div>
+              <div>
+                <p className="text-gray-400 text-sm">Monthly Spending</p>
+                <p className="text-2xl font-bold text-white">৳{stats.monthlySpending.toLocaleString()}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Recent Orders Table */}
+      <Card className="bg-gray-800 border-gray-700">
+        <CardContent className="p-6">
+          <h2 className="text-xl font-bold text-white mb-4">Recent Orders</h2>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-gray-700">
+                  <TableHead className="text-gray-400">Date</TableHead>
+                  <TableHead className="text-gray-400">Customer</TableHead>
+                  <TableHead className="text-gray-400">UID/Type</TableHead>
+                  <TableHead className="text-gray-400">Product</TableHead>
+                  <TableHead className="text-gray-400">Price</TableHead>
+                  <TableHead className="text-gray-400">Cost</TableHead>
+                  <TableHead className="text-gray-400">Profit</TableHead>
+                  <TableHead className="text-gray-400">Status</TableHead>
+                  <TableHead className="text-gray-400">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {orders.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-8 text-gray-400">
+                      No orders found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  orders.map((order) => (
+                    <TableRow key={order.id} className="border-gray-700">
+                      <TableCell className="text-white">
+                        {order.timestamp ? new Date(order.timestamp).toLocaleDateString() : "N/A"}
+                      </TableCell>
+                      <TableCell className="text-white">
+                        <div>
+                          <div className="font-medium">{order.name || "N/A"}</div>
+                          <div className="text-sm text-gray-400">{order.email || "N/A"}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-white">
+                        {isUidPurchase(order) ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-blue-400">🎮</span>
+                            <span>In-Game</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className="text-green-400">🆔</span>
+                            <span>UID</span>
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-white">
+                        <span className="bg-blue-600 text-white px-2 py-1 rounded text-sm">
+                          {order.product || "N/A"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-blue-400 font-medium">৳{order.price?.toLocaleString() || 0}</TableCell>
+                      <TableCell className="text-red-400 font-medium">৳{order.cost?.toLocaleString() || 0}</TableCell>
+                      <TableCell className="text-green-400 font-medium">
+                        ৳{order.profit?.toLocaleString() || 0}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          className={
+                            order.status === "pending"
+                              ? "bg-yellow-600 text-white"
+                              : order.status === "completed"
+                                ? "bg-green-600 text-white"
+                                : "bg-red-600 text-white"
+                          }
+                        >
+                          {order.status || "unknown"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="h-8 w-8 bg-purple-600 hover:bg-purple-700 border-purple-600"
+                            onClick={() => handleViewCredentials(order)}
+                          >
+                            <Eye className="h-4 w-4 text-white" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="h-8 w-8 bg-blue-600 hover:bg-blue-700 border-blue-600"
+                            onClick={() => handleEditProfit(order)}
+                          >
+                            <Edit className="h-4 w-4 text-white" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="h-8 w-8 bg-red-600 hover:bg-red-700 border-red-600"
+                            onClick={() => handleDeleteOrder(order.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-white" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Credentials Dialog */}
       <Dialog open={showCredentials} onOpenChange={setShowCredentials}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {selectedOrder && isUidPurchase(selectedOrder) ? "UID Information" : "Account Credentials"}
-            </DialogTitle>
+            <DialogTitle>{isUidPurchase(selectedOrder) ? "UID Information" : "Account Credentials"}</DialogTitle>
             <DialogDescription>
-              {selectedOrder && isUidPurchase(selectedOrder)
+              {isUidPurchase(selectedOrder)
                 ? "UID details for this order"
                 : "Netease account credentials for this order"}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            {selectedOrder && isUidPurchase(selectedOrder) ? (
+            {isUidPurchase(selectedOrder) ? (
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="uid" className="text-right">
                   UID
@@ -575,5 +626,3 @@ const AdminDashboard = () => {
     </div>
   )
 }
-
-export default AdminDashboard
