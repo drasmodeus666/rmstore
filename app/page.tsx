@@ -179,7 +179,7 @@ export default function HomePage() {
                 className="inline-flex items-center gap-3 px-6 py-3 bg-white/5 backdrop-blur-xl border border-white/10 rounded-full"
               >
                 <Sparkles className="h-5 w-5 text-white" />
-                <span className="text-white font-medium">Gaming Store</span>
+                <span className="text-white font-medium">Top-Up Store</span>
               </motion.div>
 
               <motion.h1
@@ -208,10 +208,6 @@ export default function HomePage() {
             transition={{ duration: 0.8, delay: 1 }}
             className="space-y-10"
           >
-            <div className="text-center space-y-6">
-              <h2 className="text-4xl sm:text-5xl font-bold text-white">Select Package Type</h2>
-              <p className="text-gray-300 text-xl sm:text-2xl">Choose how you want to receive your items</p>
-            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-4xl mx-auto">
               {/* UID Option */}
