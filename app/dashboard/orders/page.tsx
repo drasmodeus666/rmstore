@@ -276,8 +276,9 @@ const OrdersPage = () => {
                 <TableCell>
                   <Badge
                     variant={
-                      order.status === "pending" ? "secondary" : order.status === "approved" ? "success" : "destructive"
+                      order.status === "pending" ? "secondary" : order.status === "approved" ? "default" : "destructive"
                     }
+                    className={order.status === "approved" ? "bg-green-100 text-green-800 hover:bg-green-200" : ""}
                   >
                     {order.status}
                   </Badge>
