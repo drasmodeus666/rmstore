@@ -257,7 +257,8 @@ const AdminDashboard = () => {
   }
 
   // Check if order is a UID purchase
-  const isUidPurchase = (order: Order) => {
+  const isUidPurchase = (order: Order | null) => {
+    if (!order) return false
     return order.product && (order.product.toLowerCase().includes("uid") || order.uid)
   }
 
@@ -462,15 +463,17 @@ const AdminDashboard = () => {
       <Dialog open={showCredentials} onOpenChange={setShowCredentials}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{isUidPurchase(selectedOrder!) ? "UID Information" : "Account Credentials"}</DialogTitle>
+            <DialogTitle>
+              {selectedOrder && isUidPurchase(selectedOrder) ? "UID Information" : "Account Credentials"}
+            </DialogTitle>
             <DialogDescription>
-              {isUidPurchase(selectedOrder!)
+              {selectedOrder && isUidPurchase(selectedOrder)
                 ? "UID details for this order"
                 : "Netease account credentials for this order"}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            {isUidPurchase(selectedOrder!) ? (
+            {selectedOrder && isUidPurchase(selectedOrder) ? (
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="uid" className="text-right">
                   UID
