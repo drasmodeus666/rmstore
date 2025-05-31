@@ -1,3 +1,5 @@
+"use client"
+
 import { initializeApp, getApps } from "firebase/app"
 import { getAuth } from "firebase/auth"
 import { getDatabase } from "firebase/database"
@@ -13,11 +15,14 @@ const firebaseConfig = {
   appId: "1:742227178224:web:db650c6788e8fea76c8835",
 }
 
-// Initialize Firebase only if it hasn't been initialized already
+// Initialize Firebase
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
 
-// Initialize Firebase services
-export const auth = getAuth(app)
-export const database = getDatabase(app)
+// Initialize Firebase Auth
+const auth = getAuth(app)
 
+// Initialize Realtime Database
+const database = getDatabase(app)
+
+export { auth, database }
 export default app
