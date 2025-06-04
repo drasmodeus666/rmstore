@@ -30,7 +30,7 @@ const nextConfig = {
   },
   transpilePackages: ["lucide-react", "@radix-ui/react-icons"],
   experimental: {
-    serverComponentsExternalPackages: ["firebase-admin"],
+    serverExternalPackages: ["firebase-admin"],
   },
 }
 
